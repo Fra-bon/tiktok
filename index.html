@@ -2,11 +2,13 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Scatta e Mostra a Schermo Intero</title>
+  <title>Scatta e Salva su Firebase Storage</title>
   <style>
     html, body {
       margin: 0; padding: 0; height: 100%; overflow: hidden; background: black;
       display: flex; justify-content: center; align-items: center; flex-direction: column;
+      color: white;
+      font-family: Arial, sans-serif;
     }
     #fullscreen-image {
       position: fixed;
@@ -26,6 +28,7 @@
       box-shadow: 0 0 10px white;
       transition: transform 0.2s;
       margin-bottom: 20px;
+      background: black;
     }
     #scatta:hover {
       transform: scale(1.1);
@@ -46,12 +49,8 @@
     #reset:hover {
       background-color: rgba(255,255,255,0.3);
     }
-    /* Nascondiamo il video (mai visibile) */
-    #video {
-      display: none !important;
-    }
-    /* Canvas è nascosto */
-    #canvas {
+    /* Nascondiamo il video e canvas */
+    #video, #canvas {
       display: none !important;
     }
   </style>
@@ -64,7 +63,25 @@
   <canvas id="canvas"></canvas>
   <img id="fullscreen-image" src="" alt="Foto scattata" />
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
   <script>
+    // Configura Firebase (sostituisci con i tuoi dati)
+    const firebaseConfig = {
+      apiKey: "TUA_API_KEY",
+      authDomain: "TUO_PROGETTO.firebaseapp.com",
+      projectId: "TUO_PROGETTO",
+      storageBucket: "TUO_PROGETTO.appspot.com",
+      messagingSenderId: "TUO_MESSAGGIO_ID",
+      appId: "TUO_APP_ID"
+    };
+
+    // Inizializza Firebase
+    firebase.initializeApp(firebaseConfig);
+    const storage = firebase.storage();
+
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -74,8 +91,7 @@
     let stream = null;
 
     async function avviaCamera() {
-      // Usa la fotocamera interna (anteriore)
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
       video.srcObject = stream;
       return new Promise(resolve => {
         video.onloadedmetadata = () => resolve();
@@ -86,17 +102,20 @@
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
       const dataUrl = canvas.toDataURL('image/jpeg');
       fullImg.src = dataUrl;
       fullImg.style.display = 'block';
 
-      // Fullscreen foto
-      if (fullImg.requestFullscreen) {
-        fullImg.requestFullscreen();
-      } else if (fullImg.webkitRequestFullscreen) {
-        fullImg.webkitRequestFullscreen();
-      } else if (fullImg.msRequestFullscreen) {
-        fullImg.msRequestFullscreen();
+      // Carica la foto su Firebase Storage
+      try {
+        const blob = await (await fetch(dataUrl)).blob();
+        const filename = `foto_${Date.now()}.jpg`;
+        const storageRef = storage.ref().child(filename);
+        await storageRef.put(blob);
+        alert(`Foto salvata su Firebase Storage come ${filename}`);
+      } catch (err) {
+        alert('Errore nel caricamento su Firebase: ' + err.message);
       }
 
       // Ferma la fotocamera
@@ -105,7 +124,7 @@
         stream = null;
       }
 
-      // Nascondi immagine pulsante
+      // Nascondi il pulsante scatta e mostra reset
       scattaImg.style.display = 'none';
       resetBtn.style.display = 'inline-block';
     }
@@ -113,7 +132,7 @@
     scattaImg.addEventListener('click', async () => {
       try {
         await avviaCamera();
-        setTimeout(scattaFoto, 500); // breve attesa per garantire frame
+        setTimeout(scattaFoto, 500);
       } catch (err) {
         alert('Errore nell\'accesso alla fotocamera: ' + err.message);
       }
