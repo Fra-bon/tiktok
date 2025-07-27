@@ -74,7 +74,8 @@
     let stream = null;
 
     async function avviaCamera() {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      // Usa la fotocamera interna (anteriore)
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
       video.srcObject = stream;
       return new Promise(resolve => {
         video.onloadedmetadata = () => resolve();
